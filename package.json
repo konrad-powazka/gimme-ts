@@ -1,0 +1,28 @@
+{
+  "name": "gimme-ts",
+  "version": "0.1.0",
+  "description": "Gimme.ts is an inversion of control container dedicated for TypeScript apps. It relies on custom transforms which allow straightforward injection of dependencies even if they are hidden behind interfaces.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "dependencies": {
+    "lodash": "^4.17.10"
+  },
+  "devDependencies": {
+    "@types/chai": "^4.1.4",
+    "@types/glob": "^5.0.35",
+    "@types/lodash": "^4.14.116",
+    "@types/mocha": "^5.2.5",
+    "chai": "^4.1.2",
+    "glob": "^7.1.3",
+    "mocha": "^5.2.0",
+    "rimraf": "^2.6.2",
+    "typescript": "^3.0.3"
+  },
+  "scripts": {
+    "build": "npm run clean && tsc",
+    "test": "npm run clean && tsc -p ./tests && node ./tests/bin/tests/build.js && mocha ./tests/bin/tests/**/*test.js",
+    "clean": "rimraf dist/** && rimraf tests/bin/**"
+  },
+  "author": "Konrad Powązka",
+  "license": "MIT"
+}

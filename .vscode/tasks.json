@@ -14,6 +14,7 @@
             }
         },
         {
+            "identifier": "test",
             "type": "npm",
             "script": "test",
             "problemMatcher": [
@@ -22,6 +23,27 @@
             "group": {
                 "kind": "test",
                 "isDefault": true
+            }
+        },
+        {
+            "identifier": "build-tests",
+            "type": "npm",
+            "script": "build-tests",
+            "problemMatcher": [
+                "$tsc"
+            ],
+            "group": "test"
+        },
+        {
+            "identifier": "lint",
+            "type": "npm",
+            "script": "lint",
+            "problemMatcher": {
+                "owner": "tslint",
+                "applyTo": "allDocuments",
+                "fileLocation": "relative",
+                "severity": "warning",
+                "pattern": "$tslint5"
             }
         }
     ]

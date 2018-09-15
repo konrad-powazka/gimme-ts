@@ -1,5 +1,5 @@
 import * as ts from 'typescript';
-import { typeTransformer } from '../src/type-transformer';
+import transformer from '../src/transformer';
 
 export function compile(filePaths: string[]): void {
     const program = ts.createProgram(filePaths, {
@@ -14,7 +14,7 @@ export function compile(filePaths: string[]): void {
     });
 
     const transformers: ts.CustomTransformers = {
-        before: [typeTransformer(program)]
+        before: [transformer(program)]
     };
 
     const emitResult = program.emit(undefined, undefined, undefined, false, transformers);

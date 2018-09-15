@@ -1,22 +1,7 @@
 import _ from 'lodash';
 import ts from 'typescript';
-import { nameof } from './nameof';
 import { IConstructor, IConstructorParam, IType, IClassType } from './type';
-
-const abstractionFnName = nameof('abstraction', { abstraction });
-const concretionFnName = nameof('concretion', { concretion });
-const typeTransformerFnName = nameof('typeTransformer', { typeTransformer });
-
-const useTransformerErrorMessage =
-    `In order to use "${abstractionFnName}" or "${concretionFnName}" functions "${typeTransformerFnName}" transformer from same package needs to be added to the TypeScript compilation pipeline`;
-
-export function abstraction<T>(): IType<T> {
-    throw new Error(useTransformerErrorMessage);
-}
-
-export function concretion<T>(concretionConstructor: new (...params: any[]) => T): IClassType<T> {
-    throw new Error(useTransformerErrorMessage);
-}
+import { abstractionFnName, concretionFnName } from './functions-to-transform';
 
 enum NodeIdentificationResult {
     AbstractionFnCall,
@@ -24,7 +9,7 @@ enum NodeIdentificationResult {
     Other
 }
 
-export function typeTransformer(program: ts.Program): ts.TransformerFactory<ts.SourceFile> {
+export default function transformer(program: ts.Program): ts.TransformerFactory<ts.SourceFile> {
     return (context: ts.TransformationContext) =>
         (node: ts.SourceFile) => transformTypeExtractionFnCallsForNodeAndChildren(program, context, node);
 }

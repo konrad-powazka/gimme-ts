@@ -19,10 +19,14 @@
     "tslint": "^5.11.0",
     "typescript": "^3.0.3"
   },
+  "peerDependencies":{
+    "typescript": "3.0.0"
+  },
   "scripts": {
     "build": "npm run clean-dist && tsc",
     "test": "npm run build-tests && mocha ./tests/bin/tests/**/*test.js",
     "build-tests": "npm run clean-tests && tsc -p ./tests && node ./tests/bin/tests/build.js",
+    "build-all": "npm run build && npm run build-tests",
     "clean": "npm run clean-dist && npm run clean-tests",
     "clean-dist": "rimraf dist/**",
     "clean-tests": "rimraf tests/bin/**",

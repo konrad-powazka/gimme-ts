@@ -1,8 +1,9 @@
 import { expect } from 'chai';
 import 'mocha';
-import { abstraction, concretion, Container } from '../../src';
+import { Container } from '../../src';
 import { ComplexCtorClass, IComplexCtorClass, IDependency1, IDependency2 } from '../test-modules/complex-ctor-class';
 import { nameof } from '../../src/nameof';
+import { abstraction, concretion } from '../../src/functions-to-transform';
 
 describe(nameof('Container', { Container }), () => {
     let container: Container;

@@ -2,9 +2,9 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "identifier": "build",
+            "identifier": "build-all",
             "type": "npm",
-            "script": "build",
+            "script": "build-all",
             "problemMatcher": [
                 "$tsc"
             ],

@@ -1,10 +1,9 @@
 import { expect } from 'chai';
 import 'mocha';
-import { concretion, abstraction } from '../../../src';
+import { concretion, abstraction, concretionFnName } from '../../../src/functions-to-transform';
 import { ComplexCtorClass, IDependency1, IDependency2 } from '../../test-modules/complex-ctor-class';
-import { nameof } from '../../../src/nameof';
 
-describe(nameof('concretion', { concretion }), () => {
+describe(concretionFnName, () => {
     it('extracts ctor data correctly', () => {
         const type = concretion(ComplexCtorClass);
 

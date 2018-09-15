@@ -1,8 +1,8 @@
-export interface IType {
+export interface IType<TInstance> {
     readonly id: string;
 }
 
-export interface IClassType<TClass> extends IType {
+export interface IClassType<TClass> extends IType<TClass> {
     readonly constructor: IConstructor<TClass>;
 }
 

@@ -10,7 +10,7 @@ const typeTransformerFnName = nameof('typeTransformer', { typeTransformer });
 const useTransformerErrorMessage =
     `In order to use "${abstractionFnName}" or "${concretionFnName}" functions "${typeTransformerFnName}" transformer from same package needs to be added to the TypeScript compilation pipeline`;
 
-export function abstraction<T>(): IType {
+export function abstraction<T>(): IType<T> {
     throw new Error(useTransformerErrorMessage);
 }
 
@@ -117,7 +117,7 @@ function createAbstractionFnCallNodeSubstitute(
 
     const typeId = getSymbolId(type.symbol);
     const typeIdLiteral = ts.createStringLiteral(typeId);
-    const typeIdPropertyAssignment = createPropertyAssignment<IType>('id', typeIdLiteral);
+    const typeIdPropertyAssignment = createPropertyAssignment<IType<unknown>>('id', typeIdLiteral);
     const typePropertyAssignments = [typeIdPropertyAssignment];
     return ts.createObjectLiteral(typePropertyAssignments);
 }
@@ -214,7 +214,7 @@ function getSymbolId(symbol: ts.Symbol) {
             .value();
 
     const idSegments = [symbol.name].concat(declarationSourceFiles);
-    return idSegments.join('|');
+    return idSegments.join('::');
 }
 
 function createPropertyAssignment<TPropertyParent>(name: keyof TPropertyParent & string, value: ts.Expression):

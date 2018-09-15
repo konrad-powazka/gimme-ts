@@ -12,10 +12,10 @@ describe('container ', () => {
 
     it('creates a concretion with dependencies registered as instances', () => {
         const dependency1: IDependency1 = { prop1: 1 };
-        container.useInstance(dependency1).for(abstraction<IDependency1>());
+        container.for(abstraction<IDependency1>()).useInstance(dependency1);
         const dependency2: IDependency2 = { prop2: 2 };
-        container.useInstance(dependency2).for(abstraction<IDependency2>());
-        container.use(concretion(ComplexCtorClass)).for(abstraction<IComplexCtorClass>());
+        container.for(abstraction<IDependency2>()).useInstance(dependency2);
+        container.for(abstraction<IComplexCtorClass>()).use(concretion(ComplexCtorClass));
 
         const instance = container.get<IComplexCtorClass>(abstraction<IComplexCtorClass>());
 

@@ -19,7 +19,7 @@ describe(nameof('Container', { Container }), () => {
         container.for(abstraction<IDependency2>()).useInstance(dependency2);
         container.for(abstraction<IComplexCtorClass>()).use(concretion(ComplexCtorClass));
 
-        const instance = container.get<IComplexCtorClass>(abstraction<IComplexCtorClass>());
+        const instance = container.resolve(abstraction<IComplexCtorClass>());
 
         expect(instance).to.be.instanceof(ComplexCtorClass);
         expect(instance.dependency1).to.equal(dependency1);

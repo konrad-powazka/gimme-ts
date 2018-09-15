@@ -1,7 +1,9 @@
 import _ from 'lodash';
 import { IClassType, IType } from './type';
 
-type CreateConcretionFn = <TConcretion>(concretionType: IClassType<TConcretion>) => TConcretion;
+type CreateConcretionFn = <TConcretion>(
+    concretionType: IClassType<TConcretion>,
+    pendingConcretionTypeIdsStack: string[]) => TConcretion;
 
 export class Container {
     private readonly registrations: IRegistration<unknown>[] = [];
@@ -16,11 +18,17 @@ export class Container {
         return new RegistrationBuilder<TAbstraction>(registration, this.createConcretion);
     }
 
-    get<TAbstraction = unknown>(abstractionType: IType<TAbstraction>): TAbstraction {
-        return this.getByTypeId(abstractionType.id);
+    resolve<TAbstraction>(abstractionType: IType<TAbstraction>): TAbstraction {
+        return this.resolveByTypeId(abstractionType.id);
     }
 
-    getByTypeId<TAbstraction = unknown>(abstractionTypeId: string): TAbstraction {
+    resolveByTypeId<TAbstraction>(abstractionTypeId: string): TAbstraction {
+        return this.resolveByTypeIdInternal(abstractionTypeId, []);
+    }
+
+    private resolveByTypeIdInternal<TAbstraction>(
+        abstractionTypeId: string,
+        pendingConcretionTypeIdsStack: string[]): TAbstraction {
         const registration = _.find(
             this.registrations,
             potentialRegistration => potentialRegistration.abstractionType
@@ -36,17 +44,36 @@ export class Container {
             throw new Error(`No concretion has been registered fo type ${abstractionTypeId}.`);
         }
 
-        return registration.createConcretion();
+        return registration.createConcretion(pendingConcretionTypeIdsStack);
     }
 
-    // TODO: Handle cycles
     private createConcretion: CreateConcretionFn = <TConcretion>(
-        concretionType: IClassType<TConcretion>) => {
+        concretionType: IClassType<TConcretion>,
+        pendingConcretionTypeIdsStack: string[]) => {
+        const cycleWasDetected = _(pendingConcretionTypeIdsStack).includes(concretionType.id);
+
+        if (cycleWasDetected) {
+            // TODO: Provide more info
+            throw new Error('A dependency cycle has been detected.');
+        }
+
+        pendingConcretionTypeIdsStack.push(concretionType.id);
         const ctorParamValues: unknown[] = [];
 
         for (const ctorParam of concretionType.constructor.params) {
-            const ctorParamValue = this.getByTypeId(ctorParam.typeId);
+
+            const ctorParamValue = this.resolveByTypeIdInternal(
+                ctorParam.typeId,
+                pendingConcretionTypeIdsStack);
+
             ctorParamValues.push(ctorParamValue);
+        }
+
+        const poppedPendingConcretionTypeIdsStack = pendingConcretionTypeIdsStack.splice(-1);
+
+        if (poppedPendingConcretionTypeIdsStack.length !== 1
+            || poppedPendingConcretionTypeIdsStack[0] !== concretionType.id) {
+                throw new Error('Incorrect implementation.');
         }
 
         return new concretionType.constructor.function(...ctorParamValues);
@@ -70,7 +97,10 @@ class RegistrationBuilder<TAbstraction> implements IRegistrationBuilder<TAbstrac
     }
 
     use<TConcretion extends TAbstraction>(concretionType: IClassType<TConcretion>) {
-        return this.useFactory<TConcretion>(() => this.createConcretionFn(concretionType));
+        this.registration.createConcretion = 
+            pendingConcretionTypeIdsStack => this.createConcretionFn(concretionType, pendingConcretionTypeIdsStack);
+        
+        return this;
     }
 
     useInstance<TConcretion extends TAbstraction>(instance: TConcretion):
@@ -80,7 +110,7 @@ class RegistrationBuilder<TAbstraction> implements IRegistrationBuilder<TAbstrac
 
     useFactory<TConcretion extends TAbstraction>(factoryFn: () => TConcretion): IRegistrationBuilder<TConcretion> {
         this.registration.createConcretion = factoryFn;
-        return this;      
+        return this;
     }
 
     inTransientLifecycle() {
@@ -101,7 +131,7 @@ class RegistrationBuilder<TAbstraction> implements IRegistrationBuilder<TAbstrac
 
 interface IRegistration<TAbstraction> {
     readonly abstractionType: IType<TAbstraction>;
-    createConcretion?: () => TAbstraction;
+    createConcretion?: (pendingConcretionTypeIdsStack: string[]) => TAbstraction;
     lifecycle: Lifecycle;
 }
 

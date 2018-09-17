@@ -2,6 +2,7 @@ import _ from 'lodash';
 import ts from 'typescript';
 import { IConstructor, IConstructorParam, IType, IClassType } from './type';
 import { abstractionFnName, concretionFnName } from './functions-to-transform';
+import { TransformationErrorEntry, TransformationError, TransformationErrorCode } from './transformation-error';
 
 enum NodeIdentificationResult {
     AbstractionFnCall,
@@ -11,38 +12,56 @@ enum NodeIdentificationResult {
 
 export default function transformer(program: ts.Program): ts.TransformerFactory<ts.SourceFile> {
     return (context: ts.TransformationContext) =>
-        (node: ts.SourceFile) => transformTypeExtractionFnCallsForNodeAndChildren(program, context, node);
+        (node: ts.SourceFile) => {
+            const errorEntries: TransformationErrorEntry[] = [];
+
+            const result = transformTypeExtractionFnCallsForNodeAndChildren(program, context, node, errorEntries);
+
+            if (errorEntries.length > 0) {
+                // TODO: do not throw, write to compilation diagnostics
+                throw new TransformationError(errorEntries);
+            }
+
+            return result;
+        };
 }
 
 function transformTypeExtractionFnCallsForNodeAndChildren(
     program: ts.Program,
     context: ts.TransformationContext,
-    node: ts.SourceFile | ts.Node): ts.SourceFile;
+    node: ts.SourceFile | ts.Node,
+    errorEntries: TransformationErrorEntry[]): ts.SourceFile;
 
 function transformTypeExtractionFnCallsForNodeAndChildren(
     program: ts.Program,
     context: ts.TransformationContext,
-    node: ts.Node): ts.Node {
+    node: ts.Node,
+    errorEntries: TransformationErrorEntry[]): ts.Node {
     const typeChecker = program.getTypeChecker();
     const nodeIdentificationResult = identifyNode(node, typeChecker);
 
     if (nodeIdentificationResult === NodeIdentificationResult.AbstractionFnCall
         || nodeIdentificationResult === NodeIdentificationResult.ConcretionFnCall) {
         const typeExtractionFnCallNode = node as ts.CallExpression;
-        const reportErrorFn: ReportErrorFn = (message: string) => reportErrorForNode(message, typeExtractionFnCallNode);
+
+        const addErrorEntryFn: AddErrorEntryFn = (code: TransformationErrorCode, message: string) => {
+            const errorEntry = new TransformationErrorEntry(code, message, node);
+            errorEntries.push(errorEntry);
+            return node;
+        };
 
         if (nodeIdentificationResult === NodeIdentificationResult.AbstractionFnCall) {
-            return createAbstractionFnCallNodeSubstitute(typeExtractionFnCallNode, typeChecker, reportErrorFn);
+            return createAbstractionFnCallNodeSubstitute(typeExtractionFnCallNode, typeChecker, addErrorEntryFn);
         }
 
         if (nodeIdentificationResult === NodeIdentificationResult.ConcretionFnCall) {
-            return createConcretionFnCallNodeSubstitute(typeExtractionFnCallNode, typeChecker, reportErrorFn);
+            return createConcretionFnCallNodeSubstitute(typeExtractionFnCallNode, typeChecker, addErrorEntryFn);
         }
     }
 
     return ts.visitEachChild(
         node,
-        childNode => transformTypeExtractionFnCallsForNodeAndChildren(program, context, childNode),
+        childNode => transformTypeExtractionFnCallsForNodeAndChildren(program, context, childNode, errorEntries),
         context);
 }
 
@@ -85,18 +104,21 @@ function identifyNode(node: ts.Node, typeChecker: ts.TypeChecker): NodeIdentific
 function createAbstractionFnCallNodeSubstitute(
     abstractionFnCallNode: ts.CallExpression,
     typeChecker: ts.TypeChecker,
-    reportErrorFn: ReportErrorFn): ts.Node {
+    addErrorEntryFn: AddErrorEntryFn): ts.Node {
     const { typeArguments } = abstractionFnCallNode;
 
     if (!typeArguments || typeArguments.length !== 1) {
-        return reportErrorFn(`A call to "${abstractionFnName}" requires exactly one generic type parameter.`);
+        return addErrorEntryFn(
+            TransformationErrorCode.AbstractionFnCallDoesNotHaveSingleGenericParam,
+            `A call to "${abstractionFnName}" requires exactly one generic type parameter.`);
     }
 
     const typeArgument = typeArguments[0];
     const type = typeChecker.getTypeFromTypeNode(typeArgument);
 
     if (!type.isClassOrInterface()) {
-        return reportErrorFn(
+        return addErrorEntryFn(
+            TransformationErrorCode.AbstractionFnCallIsNotUsedForClassOrInterface,
             `A call to "${abstractionFnName}" can only have an interface or a class as it's a generic type parameter.`);
     }
 
@@ -110,17 +132,21 @@ function createAbstractionFnCallNodeSubstitute(
 function createConcretionFnCallNodeSubstitute(
     concretionFnCallNode: ts.CallExpression,
     typeChecker: ts.TypeChecker,
-    reportErrorFn: ReportErrorFn): ts.Node {
+    addErrorEntryFn: AddErrorEntryFn): ts.Node {
     const callArguments = concretionFnCallNode.arguments;
 
     if (!callArguments || callArguments.length !== 1) {
-        return reportErrorFn(`A call to "${concretionFnName}" function requires exactly one parameter.`);
+        return addErrorEntryFn(
+            TransformationErrorCode.ConcretionFnCallDoesNotHaveSingleParameter,
+            `A call to "${concretionFnName}" function requires exactly one parameter.`);
     }
 
     const callArgument = callArguments[0];
 
     if (callArgument.kind !== ts.SyntaxKind.Identifier) {
-        return reportErrorFn(`A call to "${concretionFnName}" function requires a class constructor as parameter.`);
+        return addErrorEntryFn(
+            TransformationErrorCode.ConcretionFnCallParameterIsNotIdentifier,
+            `A call to "${concretionFnName}" function requires a class constructor as parameter.`);
     }
 
     const callArgumentIdentifier = callArgument as ts.Identifier;
@@ -133,7 +159,9 @@ function createConcretionFnCallNodeSubstitute(
         ts.ClassDeclaration | undefined;
 
     if (!callArgumentClassDeclaration) {
-        return reportErrorFn(`A call to "${concretionFnName}" function requires a class constructor as parameter.`);
+        return addErrorEntryFn(
+            TransformationErrorCode.ConcretionFnCallParameterIsNotClassCtor,
+            `A call to "${concretionFnName}" function requires a class constructor as parameter.`);
     }
 
     const callArgumentClassType = typeChecker.getTypeOfSymbolAtLocation(
@@ -145,7 +173,7 @@ function createConcretionFnCallNodeSubstitute(
         callArgumentClassType,
         typeChecker);
 
-    const typeCtorPropertyAssignment = 
+    const typeCtorPropertyAssignment =
         createPropertyAssignment<IClassType<unknown>>('constructor', typeCtorObjectLiteral);
 
     const typeId = getSymbolId(callArgumentType.symbol);
@@ -157,15 +185,15 @@ function createConcretionFnCallNodeSubstitute(
 }
 
 function createClassTypeCtorObjectLiteral(
-    ctorFunctionIdentifier: ts.Identifier, 
+    ctorFunctionIdentifier: ts.Identifier,
     type: ts.Type,
     typeChecker: ts.TypeChecker) {
-    const ctorFunctionPropertyAssignment = 
+    const ctorFunctionPropertyAssignment =
         createPropertyAssignment<IConstructor<unknown>>('function', ctorFunctionIdentifier);
 
     const ctorParamsArrayLiteral = createCtorParamsArrayLiteral(type, typeChecker);
 
-    const ctorParamsPropertyAssignment = 
+    const ctorParamsPropertyAssignment =
         createPropertyAssignment<IConstructor<unknown>>('params', ctorParamsArrayLiteral);
 
     return ts.createObjectLiteral([ctorFunctionPropertyAssignment, ctorParamsPropertyAssignment]);
@@ -207,15 +235,4 @@ function createPropertyAssignment<TPropertyParent>(name: keyof TPropertyParent &
     return ts.createPropertyAssignment(name, value);
 }
 
-// TODO: do not throw, write to compilation diagnostics
-function reportErrorForNode(message: string, node: ts.Node): never {
-    const sourceFile = node.getSourceFile();
-    const { line, character } = sourceFile.getLineAndCharacterOfPosition(node.getStart());
-
-    const fullMessage =
-        `${sourceFile.fileName} (${line + 1},${character + 1}): ${message}`;
-
-    throw new Error(fullMessage);
-}
-
-type ReportErrorFn = (message: string) => never;
+type AddErrorEntryFn = (code: TransformationErrorCode, message: string) => ts.Node;

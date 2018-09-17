@@ -1,10 +1,10 @@
 import { expect } from 'chai';
 import 'mocha';
-import { concretion, concretionFnName } from '../../../src/functions-to-transform';
-import { ConflictedNameClass as ConflictedNameClass1 } from '../../test-modules/conflicted-name-class-1';
-import { ConflictedNameClass as SameClassAlias1 } from '../../test-modules/conflicted-name-class-1';
-import { ConflictedNameClass as SameClassAlias2 } from '../../test-modules/conflicted-name-class-1';
-import { ConflictedNameClass as ConflictedNameClass2 } from '../../test-modules/conflicted-name-class-2';
+import { concretion, concretionFnName } from '../../../../src/functions-to-transform';
+import { ConflictedNameClass as ConflictedNameClass1 } from '../../../test-modules/conflicted-name-class-1';
+import { ConflictedNameClass as SameClassAlias1 } from '../../../test-modules/conflicted-name-class-1';
+import { ConflictedNameClass as SameClassAlias2 } from '../../../test-modules/conflicted-name-class-1';
+import { ConflictedNameClass as ConflictedNameClass2 } from '../../../test-modules/conflicted-name-class-2';
 
 describe(concretionFnName, () => {
     it('assigns different ids for classes with same names in different modules', () => {

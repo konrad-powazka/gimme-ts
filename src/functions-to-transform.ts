@@ -14,3 +14,5 @@ export function abstraction<T>(): IType<T> {
 export function concretion<T>(concretionConstructor: new (...params: any[]) => T): IClassType<T> {
     throw new Error(useTransformerErrorMessage);
 }
+
+export const moduleId = 'gimme-ts/functions-to-transform';

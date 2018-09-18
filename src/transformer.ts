@@ -1,8 +1,9 @@
 import _ from 'lodash';
 import ts from 'typescript';
 import { IConstructor, IConstructorParam, IType, IClassType } from './type';
-import { abstractionFnName, concretionFnName } from './functions-to-transform';
+import { abstractionFnName, concretionFnName, moduleId } from './functions-to-transform';
 import { TransformationErrorEntry, TransformationError, TransformationErrorCode } from './transformation-error';
+import { nameof } from './nameof';
 
 enum NodeIdentificationResult {
     AbstractionFnCall,
@@ -14,6 +15,7 @@ export default function transformer(program: ts.Program): ts.TransformerFactory<
     return (context: ts.TransformationContext) =>
         (node: ts.SourceFile) => {
             const errorEntries: TransformationErrorEntry[] = [];
+
             const result = transformTypeExtractionFnCallsForNodeAndChildren(
                 program,
                 context,
@@ -93,6 +95,15 @@ function identifyNode(node: ts.Node, typeChecker: ts.TypeChecker): NodeIdentific
     }
 
     const functionDeclarationNameText = functionDeclaration.name.getText();
+    const fnNamesToLookFor = [abstractionFnName, concretionFnName];
+
+    if (fnNamesToLookFor.indexOf(functionDeclarationNameText) < 0) {
+        return NodeIdentificationResult.Other;
+    }
+
+    if (!checkIfFunctionIsDeclaredInFunctionsToTransformModule(functionDeclaration)) {
+        return NodeIdentificationResult.Other;
+    }
 
     switch (functionDeclarationNameText) {
         case abstractionFnName:
@@ -100,8 +111,55 @@ function identifyNode(node: ts.Node, typeChecker: ts.TypeChecker): NodeIdentific
         case concretionFnName:
             return NodeIdentificationResult.ConcretionFnCall;
         default:
-            return NodeIdentificationResult.Other;
+            throw new Error('Incorrect implementation.');
     }
+}
+
+function checkIfFunctionIsDeclaredInFunctionsToTransformModule(
+    functionDeclaration: ts.FunctionDeclaration): boolean {
+    const sourceFile = functionDeclaration.getSourceFile();
+    const functionsToTransformModuleIdExportName = nameof('moduleId', { moduleId });
+    const functionsToTransformModuleId = moduleId;
+
+    const checkIfNodeIsFunctionsToTransformModuleIdExport =
+        (node: ts.Node) => {
+            if (!ts.isVariableStatement(node)) {
+                return false;
+            }
+
+            const variableIsExported =
+                node.modifiers && _.some(node.modifiers, modifier => modifier.kind === ts.SyntaxKind.ExportKeyword);
+
+            if (!variableIsExported) {
+                return false;
+            }
+
+            return _.some(node.declarationList.declarations, (declaration: ts.VariableDeclaration) => 
+                declaration.name.getText() === functionsToTransformModuleIdExportName
+                && declaration.initializer
+                && ts.isStringLiteral(declaration.initializer)
+                && declaration.initializer.text === functionsToTransformModuleId
+            );
+        };
+
+
+    const checkIfNodeIsOrContainsFunctionsToTransformModuleIdExport =
+        (node: ts.Node): boolean => {
+            const nodeIsFunctionsToTransformModuleIdExport =
+                checkIfNodeIsFunctionsToTransformModuleIdExport(node);
+
+            if (nodeIsFunctionsToTransformModuleIdExport) {
+                return true;
+            }
+
+            const nodeContainsFunctionsToTransformModuleIdExport =
+                _(node.getChildren())
+                    .some(childNode => checkIfNodeIsOrContainsFunctionsToTransformModuleIdExport(childNode));
+
+            return nodeContainsFunctionsToTransformModuleIdExport;
+        };
+
+    return checkIfNodeIsOrContainsFunctionsToTransformModuleIdExport(sourceFile);
 }
 
 function createAbstractionFnCallNodeSubstitute(

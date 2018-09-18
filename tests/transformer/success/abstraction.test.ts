@@ -16,6 +16,14 @@ declare interface AmbientInterfaceWithTwoDeclarations {
     prop2: number;
 }
 
+declare namespace fakeNamespaceContainingInterfaceAndClass {
+    interface IFakeInterface{
+    }
+
+    class FakeClass{
+    }
+}
+
 describe(abstractionFnName, () => {
     it('returns different values for classes with same names in different modules', () => {
         const type1 = abstraction<ConflictedNameClass1>();
@@ -59,5 +67,17 @@ describe(abstractionFnName, () => {
         const type = abstraction<AmbientInterfaceWithTwoDeclarations>();
 
         expect(type.id).to.contain('AmbientInterfaceWithTwoDeclarations');
+    });
+
+    it('returns value for interface in ambient namespace', () => {
+        const type = abstraction<fakeNamespaceContainingInterfaceAndClass.IFakeInterface>();
+
+        expect(type.id).to.contain('IFakeInterface');
+    });
+
+    it('returns value for class in ambient namespace', () => {
+        const type = abstraction<fakeNamespaceContainingInterfaceAndClass.FakeClass>();
+
+        expect(type.id).to.contain('FakeClass');
     });
 });

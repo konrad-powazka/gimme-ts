@@ -10,7 +10,7 @@
                 "--timeout",
                 "999999",
                 "--colors",
-                "${workspaceFolder}/tests/bin/**/*.test.js"
+                "${workspaceFolder}/tests/bin/**/${fileBasenameNoExtension}.js"
             ],
             "console": "integratedTerminal",
             "internalConsoleOptions": "neverOpen",

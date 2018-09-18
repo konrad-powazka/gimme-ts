@@ -9,7 +9,12 @@ describe('transformer', () => {
         TransformationErrorCode.ConcretionFnCallParameterIsNotClassCtor);
 
     runTransformationExpectingError(
-        'throws when concretion parameter is not an identifier',
-        'concretion-param-is-not-identifier.ts',
-        TransformationErrorCode.ConcretionFnCallParameterIsNotIdentifier);
+        'throws when concretion parameter is cast to any inline',
+        'concretion-param-is-cast-to-any.ts',
+        TransformationErrorCode.ConcretionFnCallParameterIsNotClassCtor);
+
+    runTransformationExpectingError(
+        'throws when concretion parameter is of type any',
+        'concretion-param-is-any.ts',
+        TransformationErrorCode.ConcretionFnCallParameterIsNotClassCtor);
 });

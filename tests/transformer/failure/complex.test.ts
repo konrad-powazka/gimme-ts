@@ -8,5 +8,5 @@ describe('transformer', () => {
         'multiple-errors.ts',
         TransformationErrorCode.ConcretionFnCallParameterIsNotClassCtor,
         TransformationErrorCode.AbstractionFnCallIsNotUsedForClassOrInterface,
-        TransformationErrorCode.ConcretionFnCallParameterIsNotIdentifier);
+        TransformationErrorCode.ConcretionFnCallParameterIsNotClassCtor);
 });

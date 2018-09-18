@@ -14,8 +14,11 @@ export default function transformer(program: ts.Program): ts.TransformerFactory<
     return (context: ts.TransformationContext) =>
         (node: ts.SourceFile) => {
             const errorEntries: TransformationErrorEntry[] = [];
-
-            const result = transformTypeExtractionFnCallsForNodeAndChildren(program, context, node, errorEntries);
+            const result = transformTypeExtractionFnCallsForNodeAndChildren(
+                program,
+                context,
+                node,
+                errorEntries);
 
             if (errorEntries.length > 0) {
                 // TODO: do not throw, write to compilation diagnostics
@@ -142,35 +145,25 @@ function createConcretionFnCallNodeSubstitute(
     }
 
     const callArgument = callArguments[0];
-
-    if (callArgument.kind !== ts.SyntaxKind.Identifier) {
-        return addErrorEntryFn(
-            TransformationErrorCode.ConcretionFnCallParameterIsNotIdentifier,
-            `A call to "${concretionFnName}" function requires a class constructor as parameter.`);
-    }
-
-    const callArgumentIdentifier = callArgument as ts.Identifier;
-    const callArgumentType = typeChecker.getTypeAtLocation(callArgumentIdentifier);
+    const callArgumentType = typeChecker.getTypeAtLocation(callArgument);
 
     // TODO: What about ClassExpression?
     const callArgumentClassDeclaration =
-        _(callArgumentType.symbol.declarations)
-            .find(declaration => declaration.kind === ts.SyntaxKind.ClassDeclaration) as
-        ts.ClassDeclaration | undefined;
+        callArgumentType.symbol
+            ? _(callArgumentType.symbol.declarations)
+                .find(declaration => declaration.kind === ts.SyntaxKind.ClassDeclaration) as
+            ts.ClassDeclaration | undefined
+            : undefined;
 
     if (!callArgumentClassDeclaration) {
         return addErrorEntryFn(
             TransformationErrorCode.ConcretionFnCallParameterIsNotClassCtor,
-            `A call to "${concretionFnName}" function requires a class constructor as parameter.`);
+            `A call to "${concretionFnName}" function requires a typed class constructor as parameter.`);
     }
 
-    const callArgumentClassType = typeChecker.getTypeOfSymbolAtLocation(
-        callArgumentType.symbol,
-        callArgumentIdentifier);
-
     const typeCtorObjectLiteral = createClassTypeCtorObjectLiteral(
-        callArgumentIdentifier,
-        callArgumentClassType,
+        callArgument,
+        callArgumentType,
         typeChecker);
 
     const typeCtorPropertyAssignment =
@@ -185,11 +178,11 @@ function createConcretionFnCallNodeSubstitute(
 }
 
 function createClassTypeCtorObjectLiteral(
-    ctorFunctionIdentifier: ts.Identifier,
+    ctorFunctionExpression: ts.Expression,
     type: ts.Type,
     typeChecker: ts.TypeChecker) {
     const ctorFunctionPropertyAssignment =
-        createPropertyAssignment<IConstructor<unknown>>('function', ctorFunctionIdentifier);
+        createPropertyAssignment<IConstructor<unknown>>('function', ctorFunctionExpression);
 
     const ctorParamsArrayLiteral = createCtorParamsArrayLiteral(type, typeChecker);
 
@@ -220,11 +213,14 @@ function createCtorParamsArrayLiteral(type: ts.Type, typeChecker: ts.TypeChecker
 }
 
 function getSymbolId(symbol: ts.Symbol) {
-    const declarationSourceFiles =
-        _(symbol.declarations)
-            .map(declaration => declaration.getSourceFile().fileName)
-            .sort()
-            .value();
+    const declarationSourceFiles = _(symbol.declarations)
+        .map(declaration => {
+            const sourceFile = declaration.getSourceFile();
+            const { line, character } = sourceFile.getLineAndCharacterOfPosition(declaration.getStart());
+            return sourceFile.fileName + '(' + (line + 1) + ',' + (character + 1) + ')'
+        })
+        .sort()
+        .value();
 
     const idSegments = [symbol.name].concat(declarationSourceFiles);
     return idSegments.join('::');

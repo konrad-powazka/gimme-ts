@@ -1,10 +1,9 @@
-import ts from "typescript";
+import ts from 'typescript';
 
 export enum TransformationErrorCode {
     AbstractionFnCallDoesNotHaveSingleGenericParam,
     AbstractionFnCallIsNotUsedForClassOrInterface,
     ConcretionFnCallDoesNotHaveSingleParameter,
-    ConcretionFnCallParameterIsNotIdentifier,
     ConcretionFnCallParameterIsNotClassCtor
 }
 
@@ -31,7 +30,7 @@ export class TransformationError extends Error {
     }
 
     private static createMessage(entries: ReadonlyArray<TransformationErrorEntry>) {
-        const generalMessage = "Gimme.ts transformation encountered following errors:";
+        const generalMessage = 'Gimme.ts transformation encountered following errors:';
         const entryMessages = entries.map(entry => TransformationError.createMessageForEntry(entry));
         return [generalMessage, ...entryMessages].join('\n');
     }
@@ -40,6 +39,6 @@ export class TransformationError extends Error {
         const sourceFile = entry.offendingNode.getSourceFile();
         var errorMessage = `Code ${entry.code} - ${entry.message}`;
         const { line, character } = sourceFile.getLineAndCharacterOfPosition(entry.offendingNode.getStart());
-        return sourceFile.fileName + "(" + (line + 1) + "," + (character + 1) + "): " + errorMessage;
+        return sourceFile.fileName + '(' + (line + 1) + ',' + (character + 1) + '): ' + errorMessage;
     }
 }

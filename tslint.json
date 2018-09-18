@@ -1,5 +1,10 @@
 {
     "extends": "tslint:recommended",
+    "linterOptions": {
+        "exclude": [
+            "tests/**/*test-modules/**/*",
+        ]
+    },
     "rules": {
         "quotemark": [true, "single", "avoid-escape"],
         "arrow-parens": false,

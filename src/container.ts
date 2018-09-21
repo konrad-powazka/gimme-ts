@@ -1,21 +1,12 @@
 import _ from 'lodash';
 import { IClassType, IType } from './type';
 
-type CreateConcretionFn = <TConcretion>(
-    concretionType: IClassType<TConcretion>,
-    pendingConcretionTypeIdsStack: string[]) => TConcretion;
-
 export class Container {
-    private readonly registrations: IRegistration<unknown>[] = [];
+    private readonly concretionsInstantiatedInThisScope: IInstantiatedConcretion[] = [];
 
-    for<TAbstraction>(abstractionType: IType<TAbstraction>) {
-        const registration: IRegistration<TAbstraction> = {
-            abstractionType: abstractionType,
-            lifecycle: Lifecycle.Transient
-        };
-
-        this.registrations.push(registration);
-        return new RegistrationBuilder<TAbstraction>(registration, this.createConcretion);
+    constructor(
+        private readonly registrations: ReadonlyArray<IRegistration<unknown>>,
+        private readonly parentContainer?: Container) {
     }
 
     resolve<TAbstraction>(abstractionType: IType<TAbstraction>): TAbstraction {
@@ -40,16 +31,42 @@ export class Container {
                 'therefore an instance of it cannot be retrieved.');
         }
 
-        if (!registration.createConcretion) {
-            throw new Error(`No concretion has been registered fo type ${abstractionTypeId}.`);
+        if (registration.lifecycle === Lifecycle.Singleton && this.parentContainer) {
+            return this.parentContainer.resolveByTypeIdInternal(abstractionTypeId, pendingConcretionTypeIdsStack);
         }
 
-        return registration.createConcretion(pendingConcretionTypeIdsStack);
+        const instanceShouldBeSavedInThisScope =
+            registration.lifecycle === Lifecycle.Singleton || registration.lifecycle === Lifecycle.Scoped;
+
+        if (instanceShouldBeSavedInThisScope) {
+            const existingConcretion =
+                _.find(this.concretionsInstantiatedInThisScope, concretion => concretion.abstractionTypeId === abstractionTypeId);
+
+            if (existingConcretion) {
+                return existingConcretion.instance as TAbstraction;
+            }
+        }
+
+        const newInstance =
+            typeof registration.concretionTypeOrFactoryFn === 'function'
+                ? registration.concretionTypeOrFactoryFn()
+                : this.createConcretion(
+                    registration.concretionTypeOrFactoryFn,
+                    pendingConcretionTypeIdsStack);
+
+        if (instanceShouldBeSavedInThisScope) {
+            this.concretionsInstantiatedInThisScope.push({
+                abstractionTypeId: abstractionTypeId,
+                instance: newInstance
+            });
+        }
+
+        return newInstance;
     }
 
-    private createConcretion: CreateConcretionFn = <TConcretion>(
+    private createConcretion<TConcretion>(
         concretionType: IClassType<TConcretion>,
-        pendingConcretionTypeIdsStack: string[]) => {
+        pendingConcretionTypeIdsStack: string[]) {
         const cycleWasDetected = _(pendingConcretionTypeIdsStack).includes(concretionType.id);
 
         if (cycleWasDetected) {
@@ -61,7 +78,6 @@ export class Container {
         const ctorParamValues: unknown[] = [];
 
         for (const ctorParam of concretionType.constructor.params) {
-
             const ctorParamValue = this.resolveByTypeIdInternal(
                 ctorParam.typeId,
                 pendingConcretionTypeIdsStack);
@@ -73,70 +89,32 @@ export class Container {
 
         if (poppedPendingConcretionTypeIdsStack.length !== 1
             || poppedPendingConcretionTypeIdsStack[0] !== concretionType.id) {
-                throw new Error('Incorrect implementation.');
+            throw new Error('Incorrect implementation.');
         }
 
         return new concretionType.constructor.function(...ctorParamValues);
     }
-}
 
-export interface IRegistrationBuilder<TAbstraction> {
-    use<TConcretion extends TAbstraction>(concretionType: IClassType<TConcretion>): IRegistrationBuilder<TAbstraction>;
-    useInstance<TConcretion extends TAbstraction>(instance: TConcretion): IRegistrationBuilder<TAbstraction>;
-    useFactory<TConcretion extends TAbstraction>(factoryFn: () => TConcretion): IRegistrationBuilder<TConcretion>;
-    inTransientLifecycle(): IRegistrationBuilder<TAbstraction>;
-    inSingletonLifecycle(): IRegistrationBuilder<TAbstraction>;
-    inScopedLifecycle(): IRegistrationBuilder<TAbstraction>;
-}
-
-// TODO: Implement lifecycles
-class RegistrationBuilder<TAbstraction> implements IRegistrationBuilder<TAbstraction> {
-    constructor(
-        private readonly registration: IRegistration<TAbstraction>,
-        private readonly createConcretionFn: CreateConcretionFn) {
-    }
-
-    use<TConcretion extends TAbstraction>(concretionType: IClassType<TConcretion>) {
-        this.registration.createConcretion = 
-            pendingConcretionTypeIdsStack => this.createConcretionFn(concretionType, pendingConcretionTypeIdsStack);
-        
-        return this;
-    }
-
-    useInstance<TConcretion extends TAbstraction>(instance: TConcretion):
-        IRegistrationBuilder<TConcretion> {
-        return this.useFactory(() => instance);
-    }
-
-    useFactory<TConcretion extends TAbstraction>(factoryFn: () => TConcretion): IRegistrationBuilder<TConcretion> {
-        this.registration.createConcretion = factoryFn;
-        return this;
-    }
-
-    inTransientLifecycle() {
-        throw new Error('Method not implemented.');
-        return this;
-    }
-
-    inSingletonLifecycle() {
-        throw new Error('Method not implemented.');
-        return this;
-    }
-
-    inScopedLifecycle() {
-        throw new Error('Method not implemented.');
-        return this;
+    createScope(): Container {
+        return new Container(this.registrations, this);
     }
 }
 
 interface IRegistration<TAbstraction> {
     readonly abstractionType: IType<TAbstraction>;
-    createConcretion?: (pendingConcretionTypeIdsStack: string[]) => TAbstraction;
-    lifecycle: Lifecycle;
+    readonly concretionTypeOrFactoryFn: ConcretionTypeOrFactoryFn<TAbstraction>;
+    readonly lifecycle: Lifecycle;
 }
 
-enum Lifecycle {
+export type ConcretionTypeOrFactoryFn<TAbstraction> = IClassType<TAbstraction> | (() => TAbstraction);
+
+interface IInstantiatedConcretion {
+    readonly instance: unknown;
+    readonly abstractionTypeId: string;
+}
+
+export enum Lifecycle {
     Transient,
-    Singleton,
-    Scoped
+    Scoped,
+    Singleton
 }

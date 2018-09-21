@@ -1,14 +1,14 @@
 import { expect } from 'chai';
 import 'mocha';
-import { Container } from '../../src';
+import { Container, ContainerBuilder } from '../../src';
 import { nameof } from '../../src/nameof';
 import { abstraction, concretion } from '../../src/functions-to-transform';
 
 describe(nameof('Container', { Container }), () => {
-    let container: Container;
+    let builder: ContainerBuilder;
 
     beforeEach(() => {
-        container = new Container();
+        builder = new ContainerBuilder();
     });
 
     it('detects one-level dependency cycle', () => {
@@ -20,8 +20,9 @@ describe(nameof('Container', { Container }), () => {
             }
         }
 
-        container.for(abstraction<IOneLevelDependencyCycle>()).use(concretion(OneLevelDependencyCycle));
-        
+        builder.for(abstraction<IOneLevelDependencyCycle>()).use(concretion(OneLevelDependencyCycle));
+        const container = builder.build();
+
         const action = () => container.resolve(abstraction<IOneLevelDependencyCycle>());
 
         expect(action).to.throw;
@@ -44,8 +45,10 @@ describe(nameof('Container', { Container }), () => {
             }
         }
 
-        container.for(abstraction<ITwoLevelDependencyCycle1>()).use(concretion(TwoLevelDependencyCycle1));
-        container.for(abstraction<ITwoLevelDependencyCycle2>()).use(concretion(TwoLevelDependencyCycle2));
+        builder.for(abstraction<ITwoLevelDependencyCycle1>()).use(concretion(TwoLevelDependencyCycle1));
+        builder.for(abstraction<ITwoLevelDependencyCycle2>()).use(concretion(TwoLevelDependencyCycle2));
+        const container = builder.build();
+
 
         const action = () => container.resolve(abstraction<TwoLevelDependencyCycle1>());
 
@@ -77,9 +80,10 @@ describe(nameof('Container', { Container }), () => {
             }
         }
 
-        container.for(abstraction<IThreeLevelDependencyCycle1>()).use(concretion(ThreeLevelDependencyCycle1));
-        container.for(abstraction<IThreeLevelDependencyCycle2>()).use(concretion(ThreeLevelDependencyCycle2));
-        container.for(abstraction<IThreeLevelDependencyCycle3>()).use(concretion(ThreeLevelDependencyCycle3));
+        builder.for(abstraction<IThreeLevelDependencyCycle1>()).use(concretion(ThreeLevelDependencyCycle1));
+        builder.for(abstraction<IThreeLevelDependencyCycle2>()).use(concretion(ThreeLevelDependencyCycle2));
+        builder.for(abstraction<IThreeLevelDependencyCycle3>()).use(concretion(ThreeLevelDependencyCycle3));
+        const container = builder.build();
         
         const action = () => container.resolve(abstraction<ThreeLevelDependencyCycle1>());
 
@@ -100,8 +104,9 @@ describe(nameof('Container', { Container }), () => {
             }
         }
 
-        container.for(abstraction<HasChildWithDependencyCycle>()).use(concretion(HasChildWithDependencyCycle));
-        container.for(abstraction<IHasDependencyCycle>()).use(concretion(HasDependencyCycle));
+        builder.for(abstraction<HasChildWithDependencyCycle>()).use(concretion(HasChildWithDependencyCycle));
+        builder.for(abstraction<IHasDependencyCycle>()).use(concretion(HasDependencyCycle));
+        const container = builder.build();
         
         const action = () => container.resolve(abstraction<HasChildWithDependencyCycle>());
 

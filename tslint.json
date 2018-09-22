@@ -2,7 +2,7 @@
     "extends": "tslint:recommended",
     "linterOptions": {
         "exclude": [
-            "tests/**/*test-modules/**/*",
+            "tests/**/*test-modules/**/*"
         ]
     },
     "rules": {

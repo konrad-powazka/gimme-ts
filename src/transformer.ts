@@ -1,9 +1,11 @@
+/** @typedef {typeof import('./functions-to-transform').abstraction} abstraction */
+/** @typedef {typeof import('./functions-to-transform').concretion} concretion */
 import _ from 'lodash';
 import ts from 'typescript';
-import { IConstructor, IConstructorParam, IType, IClassType } from './type';
 import { abstractionFnName, concretionFnName, moduleId } from './functions-to-transform';
-import { TransformationErrorEntry, TransformationError, TransformationErrorCode } from './transformation-error';
 import { nameof } from './nameof';
+import { TransformationError, TransformationErrorCode, TransformationErrorEntry } from './transformation-error';
+import { IClassType, IConstructor, IConstructorParam, IType } from './type';
 
 enum NodeIdentificationResult {
     AbstractionFnCall,
@@ -11,6 +13,13 @@ enum NodeIdentificationResult {
     Other
 }
 
+/**
+ * Creates a factory which creates a transformer which transforms TypeScript code so that all usages
+ * of [[abstraction]] and [[concretion]] functions will be replaced with relevant
+ * objects containing type information.
+ * @param program The program which will be transformed by created transformation.
+ * @returns The transformation factory.
+ */
 export default function transformer(program: ts.Program): ts.TransformerFactory<ts.SourceFile> {
     return (context: ts.TransformationContext) =>
         (node: ts.SourceFile) => {

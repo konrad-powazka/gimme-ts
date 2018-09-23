@@ -1,7 +1,24 @@
 import _ from 'lodash';
 import { IClassType, IType } from './type';
 
-export class Container {
+/**
+ * Instantiates and manages concretions for registered abstractions.
+ */
+export interface IContainer {
+    /**
+     * Creates or reuses an instance of a concretion for given abstraction.
+     * @param TAbstraction The type of the abstraction to resolve.
+     * @param abstractionType The type information of the abstraction to resolve.
+     * @returns An instance of the concretion for given abstraction.
+     */
+    resolve<TAbstraction>(abstractionType: IType<TAbstraction>): TAbstraction;
+
+    /* Creates a child container */
+    createScope(): IContainer;
+}
+
+/** @ignore @internal */
+export class Container implements IContainer {
     private readonly concretionsInstantiatedInThisScope: IInstantiatedConcretion[] = [];
 
     constructor(
@@ -40,7 +57,8 @@ export class Container {
 
         if (instanceShouldBeSavedInThisScope) {
             const existingConcretion =
-                _.find(this.concretionsInstantiatedInThisScope, concretion => concretion.abstractionTypeId === abstractionTypeId);
+                _.find(this.concretionsInstantiatedInThisScope,
+                    concretion => concretion.abstractionTypeId === abstractionTypeId);
 
             if (existingConcretion) {
                 return existingConcretion.instance as TAbstraction;
@@ -95,7 +113,7 @@ export class Container {
         return new concretionType.constructor.function(...ctorParamValues);
     }
 
-    createScope(): Container {
+    createScope(): IContainer {
         return new Container(this.registrations, this);
     }
 }
@@ -106,6 +124,7 @@ interface IRegistration<TAbstraction> {
     readonly lifecycle: Lifecycle;
 }
 
+/** @ignore @internal */
 export type ConcretionTypeOrFactoryFn<TAbstraction> = IClassType<TAbstraction> | (() => TAbstraction);
 
 interface IInstantiatedConcretion {
@@ -113,8 +132,22 @@ interface IInstantiatedConcretion {
     readonly abstractionTypeId: string;
 }
 
+/** Defines if a new instance of a concretion will be created when resolving an abstraction. */
 export enum Lifecycle {
+    /**
+     * A new instance of a concretion will be created every time an abstraction is being resolved.
+     */
     Transient,
+
+    /**
+     * A new instance of a concretion will be created only if it hasn't been already created for current container.
+     * Otherwise an existing instance will be reused.
+     */
     Scoped,
+
+    /**
+     * A new instance of a concretion will be created only if it hasn't been already created for current container
+     * and any of its parent or child containers. Otherwise an existing instance will be reused.
+     */
     Singleton
 }

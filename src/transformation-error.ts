@@ -1,4 +1,4 @@
-import ts from 'typescript';
+import * as ts from 'typescript';
 
 /** The code of an error encountered during transformation. */
 export enum TransformationErrorCode {

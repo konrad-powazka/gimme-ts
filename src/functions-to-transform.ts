@@ -34,5 +34,8 @@ export function concretion<TConcretion>(
     throw new Error(useTransformerErrorMessage);
 }
 
-/** @ignore @internal */
+/**
+ * A module marker export which allows to reliably identify [[abstraction]] and [[concretion]] functions
+ * during transformation.
+ */
 export const moduleId = 'gimme-ts/functions-to-transform';

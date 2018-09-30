@@ -1,7 +1,7 @@
 /** @typedef {typeof import('./functions-to-transform').abstraction} abstraction */
 /** @typedef {typeof import('./functions-to-transform').concretion} concretion */
 import _ from 'lodash';
-import ts from 'typescript';
+import * as ts from 'typescript';
 import { abstractionFnName, concretionFnName, moduleId } from './functions-to-transform';
 import { nameof } from './nameof';
 import { TransformationError, TransformationErrorCode, TransformationErrorEntry } from './transformation-error';

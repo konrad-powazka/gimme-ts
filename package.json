@@ -1,9 +1,12 @@
 {
-  "name": "gimme-ts",
-  "version": "0.1.0",
+  "name": "@gimme-ts/core",
+  "version": "0.1.1",
   "description": "Gimme.ts is an inversion of control container dedicated for TypeScript apps. It relies on custom transforms which allow straightforward injection of dependencies even if they are hidden behind interfaces.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist/**/*"
+  ],
   "dependencies": {
     "lodash": "^4.17.10"
   },
